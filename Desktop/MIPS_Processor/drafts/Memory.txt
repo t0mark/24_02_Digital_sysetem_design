@@ -1,0 +1,52 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date: 2024/11/16 11:43:03
+-- Design Name: 
+-- Module Name: Memory - Behavioral
+-- Project Name: 
+-- Target Devices: 
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx leaf cells in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity Memory is
+    port (  CS, WE, CLK: in std_logic;
+            Addr: in unsigned(31 downto 0);
+            Mem_Bus: inout unsigned(31 downto 0));
+end Memory;
+
+architecture Behavioral of Memory is
+    type RAMtype is array(0 to 127) of unsigned(31 downto 0);
+    signal RAM: RAMtype := (others => (others => '0'));
+    signal Output: unsigned(31 downto 0);
+begin
+    Mem_Bus <= (others => 'Z') when CS = '0' or WE = '1' else Output;
+    process(CLK)
+    begin
+        if CLK = '0' and CLK'event then
+            if CS = '1' and WE = '1' then
+                RAM(to_integer(Addr(6 downto 0))) <= Mem_Bus;
+            end if;
+            Output <= RAM(to_integer(Addr(6 downto 0)));
+        end if;
+    end process;
+end Behavioral;

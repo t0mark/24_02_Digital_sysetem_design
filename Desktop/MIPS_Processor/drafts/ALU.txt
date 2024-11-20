@@ -1,0 +1,32 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity ALU is
+port(
+    A, B: in unsigned(31 downto 0);
+    ALU_Control: in std_logic_vector(1 downto 0);
+    Result: out unsigned(31 downto 0);
+    Zero: out std_logic  
+);
+end ALU;
+
+architecture Behavioral of ALU is
+begin
+    process(A, B, ALU_Control)
+    begin
+        case ALU_Control is
+            when "00" => Result <= A + B; -- 덧셈
+            when "01" => Result <= A - B; -- 뺄셈
+            when "10" => Result <= A and B; -- AND
+            when "11" => Result <= A or B;  -- OR
+            when others => Result <= (others => '0'); -- 기본값
+        end case;
+
+        if Result = (others => '0') then
+            Zero <= '1';
+        else
+            Zero <= '0';
+        end if;
+    end process;
+end Behavioral;
