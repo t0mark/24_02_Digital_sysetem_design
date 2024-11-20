@@ -1,0 +1,159 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity ControlUnit is
+    Port (
+        opcode   : in  std_logic_vector(6 downto 0); -- 7비트 명령어 opcode
+        funct3   : in  std_logic_vector(2 downto 0); -- funct3 필드 (R/I/S/SB-타입)
+        funct7   : in  std_logic_vector(6 downto 0); -- funct7 필드 (R-타입)
+        RegWrite : out std_logic;                   -- 레지스터 쓰기 신호
+        ALUOp    : out std_logic_vector(2 downto 0); -- ALU 연산 제어 신호
+        MemRead  : out std_logic;                   -- 메모리 읽기 신호
+        MemWrite : out std_logic;                   -- 메모리 쓰기 신호
+        Branch   : out std_logic;                   -- 분기 신호
+        Jump     : out std_logic;                   -- 점프 신호
+        ALUSrc   : out std_logic;                   -- ALU 입력 선택 신호
+        MemToReg : out std_logic                    -- 메모리 데이터 -> 레지스터 저장
+    );
+end ControlUnit;
+
+architecture Behavioral of ControlUnit is
+begin
+    process(opcode, funct3, funct7)
+    begin
+        -- 기본값 설정
+        RegWrite <= '0';
+        ALUOp <= "000";
+        MemRead <= '0';
+        MemWrite <= '0';
+        Branch <= '0';
+        Jump <= '0';
+        ALUSrc <= '0';
+        MemToReg <= '0';
+
+        -- Opcode 기반 포맷 구분
+        case opcode is
+            -------------------
+            -- R-타입 명령어 --
+            -------------------
+            when "0110011" => -- R-타입 (ADD, SUB, AND, OR 등)
+                RegWrite <= '1';
+                ALUSrc <= '0'; -- 레지스터 입력
+                MemToReg <= '0'; -- ALU 결과를 레지스터로
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '0';
+                -- ALU 연산 결정
+                case funct3 is
+                    when "000" => -- ADD, SUB
+                        if funct7 = "0000000" then
+                            ALUOp <= "010"; -- ADD
+                        elsif funct7 = "0100000" then
+                            ALUOp <= "110"; -- SUB
+                        end if;
+                    when "111" => ALUOp <= "000"; -- AND
+                    when "110" => ALUOp <= "001"; -- OR
+                    when others => ALUOp <= "000"; -- 기본값
+                end case;
+
+            -------------------
+            -- I-타입 명령어 --
+            -------------------
+            when "0010011" => -- I-타입 (ADDI, ORI, SLTI)
+                RegWrite <= '1';
+                ALUSrc <= '1'; -- Immediate 입력
+                MemToReg <= '0';
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '0';
+                case funct3 is
+                    when "000" => ALUOp <= "010"; -- ADDI
+                    when "010" => ALUOp <= "111"; -- SLTI
+                    when "110" => ALUOp <= "001"; -- ORI
+                    when others => ALUOp <= "000";
+                end case;
+
+            when "0000011" => -- I-타입 (LW)
+                RegWrite <= '1';
+                ALUSrc <= '1';
+                MemToReg <= '1'; -- 메모리 데이터를 레지스터로
+                MemRead <= '1';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '0';
+                ALUOp <= "010"; -- ADD (주소 계산)
+
+            -------------------
+            -- S-타입 명령어 --
+            -------------------
+            when "0100011" => -- S-타입 (SW)
+                RegWrite <= '0';
+                ALUSrc <= '1'; -- Immediate 입력
+                MemToReg <= '0';
+                MemRead <= '0';
+                MemWrite <= '1'; -- 메모리 쓰기 활성화
+                Branch <= '0';
+                Jump <= '0';
+                ALUOp <= "010"; -- ADD (주소 계산)
+
+            -------------------
+            -- SB-타입 명령어 --
+            -------------------
+            when "1100011" => -- SB-타입 (BEQ, BNE)
+                RegWrite <= '0';
+                ALUSrc <= '0'; -- 레지스터 입력
+                MemToReg <= '0';
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '1'; -- 분기 활성화
+                Jump <= '0';
+                case funct3 is
+                    when "000" => ALUOp <= "110"; -- BEQ
+                    when "001" => ALUOp <= "111"; -- BNE
+                    when others => ALUOp <= "000";
+                end case;
+
+            -------------------
+            -- U-타입 명령어 --
+            -------------------
+            when "0110111" => -- U-타입 (LUI)
+                RegWrite <= '1';
+                ALUSrc <= '1'; -- Immediate 입력
+                MemToReg <= '0';
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '0';
+                ALUOp <= "011"; -- LUI (상위 비트 로드)
+
+            -------------------
+            -- UJ-타입 명령어 --
+            -------------------
+            when "1101111" => -- UJ-타입 (JAL)
+                RegWrite <= '1';
+                ALUSrc <= '1'; -- Immediate 입력
+                MemToReg <= '0';
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '1'; -- 점프 활성화
+                ALUOp <= "000"; -- ALU는 사용하지 않음
+
+            -------------------
+            -- 기본값 처리 --
+            -------------------
+            when others =>
+                RegWrite <= '0';
+                MemRead <= '0';
+                MemWrite <= '0';
+                Branch <= '0';
+                Jump <= '0';
+                ALUSrc <= '0';
+                MemToReg <= '0';
+                ALUOp <= "000";
+        end case;
+    end process;
+end Behavioral;
