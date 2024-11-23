@@ -1,0 +1,33 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity InstructionDecoder is
+    port (
+        Instruction: in std_logic_vector(31 downto 0); -- 입력 명령어 (32비트)
+        opcode: out std_logic_vector(6 downto 0);      -- opcode 필드 (7비트)
+        rd: out std_logic_vector(4 downto 0);          -- 목적 레지스터 (5비트)
+        funct3: out std_logic_vector(2 downto 0);      -- funct3 필드 (3비트)
+        rs1: out std_logic_vector(4 downto 0);         -- 소스 레지스터 1 (5비트)
+        rs2: out std_logic_vector(4 downto 0);         -- 소스 레지스터 2 (5비트)
+        funct7: out std_logic_vector(6 downto 0);      -- funct7 필드 (7비트)
+        immediate: out std_logic_vector(31 downto 0)  -- 즉시값 (32비트)
+    );
+end InstructionDecoder;
+
+architecture Behavioral of InstructionDecoder is
+begin
+    process(Instruction)
+    begin
+        -- 명령어 필드 분리
+        opcode <= Instruction(6 downto 0);          -- opcode: 비트 0~6
+        rd <= Instruction(11 downto 7);            -- rd: 비트 7~11
+        funct3 <= Instruction(14 downto 12);       -- funct3: 비트 12~14
+        rs1 <= Instruction(19 downto 15);          -- rs1: 비트 15~19
+        rs2 <= Instruction(24 downto 20);          -- rs2: 비트 20~24
+        funct7 <= Instruction(31 downto 25);       -- funct7: 비트 25~31
+
+        -- 즉시값 처리 (기본 I-Type 명령어 기준)
+        immediate <= std_logic_vector(signed(Instruction(31 downto 20))); -- 12비트 확장
+    end process;
+end Behavioral;

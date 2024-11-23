@@ -1,0 +1,42 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity PC is
+    port (
+        CLK: in  std_logic;                                         -- CLK
+        reset: in  std_logic;                                       -- PC reset 신호
+        jump_addr: in  std_logic_vector(31 downto 0);               -- Jump 연산에서 다음 PC 주소
+        pc_src: in  std_logic;                                      -- Jump 유무 판별
+        
+        pc_out: out std_logic_vector(31 downto 0)     -- Instruction Mem에 전달되는 addr
+    );
+end PC;
+
+architecture Behavioral of PC is
+    signal pc_reg : std_logic_vector(31 downto 0) := (others => '0'); -- 현재 실행중인 명령어의 주소
+    signal pc_next: std_logic_vector(31 downto 0);                    -- 다음 명령어 주소
+begin
+    -- PC 업데이트
+    process(CLK, reset)
+    begin
+        if reset = '1' then
+            pc_reg <= (others => '0');  -- 리셋 시 PC 초기화
+        elsif rising_edge(CLK) then
+            pc_reg <= pc_next;          -- 다음 PC 값 설정
+        end if;
+    end process;
+
+    -- 다음 PC 결정 로직
+    process(pc_src, pc_reg, jump_addr)
+    begin
+	    if pc_src = '0' then
+		    pc_next <= std_logic_vector(unsigned(pc_reg) + 4);
+		else
+			pc <= jump_addr;
+		end if;
+    end process;
+
+    -- 출력
+    pc_out <= pc_reg;
+end Behavioral;

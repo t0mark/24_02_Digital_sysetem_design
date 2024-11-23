@@ -1,0 +1,112 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity ALU is
+    port(
+        A, B: in unsigned(31 downto 0);                   -- ALU 입력 (Unsigned)
+        imm: in unsigned(31 downto 0);                   -- Immediate 입력
+        ALU_control: in std_logic_vector(3 downto 0);    -- ALU 제어 신호
+        ALU_imm_src: in std_logic;                       -- Immediate 선택 신호
+        pc_branch_in: in unsigned(31 downto 0);          -- PC 입력
+        result: out unsigned(31 downto 0);               -- ALU 결과
+        pc_src: out std_logic;                           -- 분기 신호
+        pc_branch_out: out unsigned(31 downto 0)         -- 다음 PC 주소
+    );
+end entity;
+
+architecture Behavioral of ALU is
+    signal ALU_B: unsigned(31 downto 0); -- ALU의 두 번째 입력 (레지스터 값 또는 Immediate)
+    signal temp_result: unsigned(31 downto 0); -- ALU 연산 결과 저장
+    signal branch_condition: std_logic; -- 분기 조건 신호
+begin
+    -- ALU 입력 선택 (Immediate vs 레지스터 값)
+    process(A, B, imm, ALU_imm_src)
+    begin
+        if ALU_imm_src = '1' then
+            ALU_B <= imm; -- Immediate 사용
+        else
+            ALU_B <= B; -- 레지스터 값 사용
+        end if;
+    end process;
+
+    -- ALU 연산
+    process(A, ALU_B, ALU_control)
+    begin
+        case ALU_control is
+            when "0000" => -- ADD
+                temp_result <= A + ALU_B;
+            when "0001" => -- SUB
+                temp_result <= A - ALU_B;
+            when "0010" => -- SLL (Shift Left Logical)
+                temp_result <= shift_left(A, to_integer(ALU_B(4 downto 0)));
+            when "0011" => -- SLT (Signed Less Than)
+                if signed(A) < signed(ALU_B) then
+                    temp_result <= to_unsigned(1, 32);
+                else
+                    temp_result <= to_unsigned(0, 32);
+                end if;
+            when "0100" => -- SLTU (Unsigned Less Than)
+                if A < ALU_B then
+                    temp_result <= to_unsigned(1, 32);
+                else
+                    temp_result <= to_unsigned(0, 32);
+                end if;
+            when "0101" => -- XOR
+                temp_result <= A xor ALU_B;
+            when "0110" => -- SRL (Shift Right Logical)
+                temp_result <= shift_right(A, to_integer(ALU_B(4 downto 0)));
+            when "0111" => -- SRA (Shift Right Arithmetic)
+                temp_result <= shift_right_arith(signed(A), to_integer(ALU_B(4 downto 0)));
+            when "1000" => -- OR
+                temp_result <= A or ALU_B;
+            when "1001" => -- AND
+                temp_result <= A and ALU_B;
+            when "1010" => -- BEQ, BNE (Equality Comparison)
+                if A = ALU_B then
+                    branch_condition <= '1'; -- BEQ 조건 만족
+                else
+                    branch_condition <= '0'; -- BNE 조건 만족
+                end if;
+            when "1011" => -- BLT, BGE (Signed Comparison)
+                if signed(A) < signed(ALU_B) then
+                    branch_condition <= '1'; -- BLT 조건 만족
+                else
+                    branch_condition <= '0'; -- BGE 조건 만족
+                end if;
+            when "1100" => -- BLTU, BGEU (Unsigned Comparison)
+                if A < ALU_B then
+                    branch_condition <= '1'; -- BLTU 조건 만족
+                else
+                    branch_condition <= '0'; -- BGEU 조건 만족
+                end if;
+            when "1101" => -- LUI (Load Upper Immediate)
+                temp_result <= ALU_B; -- Immediate 값 전달
+            when "1110" => -- AUIPC (Add Upper Immediate to PC)
+                temp_result <= pc_branch_in + ALU_B;
+            when others =>
+                temp_result <= (others => '0'); -- 기본값
+        end case;
+
+        -- 결과 출력
+        result <= temp_result;
+    end process;
+
+    -- 분기 신호 설정
+	process(Branch_Condition, ALU_Control)
+	begin
+	    if ALU_Control(3 downto 0) = "1010" or  -- BEQ, BNE
+	       ALU_Control(3 downto 0) = "1011" or  -- BLT, BGE
+	       ALU_Control(3 downto 0) = "1100" then -- BLTU, BGEU
+	        pc_src <= Branch_Condition; -- 조건에 따라 분기 신호 설정
+	    else
+	        pc_src <= '0'; -- 기본값
+	    end if;
+	end process;
+
+	-- 분기 주소 계산
+    process(pc_branch_in, imm)
+    begin
+        pc_branch_out <= pc_branch_in + imm; -- PC + Offset 계산
+    end process;
+end Behavioral;

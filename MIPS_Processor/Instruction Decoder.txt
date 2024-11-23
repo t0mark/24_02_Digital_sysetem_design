@@ -1,0 +1,58 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity InstructionDecoder is
+    port (
+        instruction: in std_logic_vector(31 downto 0); -- 입력 명령어 (32비트)
+
+        opcode: out std_logic_vector(6 downto 0);      -- opcode 필드 (7비트)
+        rd: out unsigned(4 downto 0);                 -- 목적 레지스터 (5비트)
+        rs1, rs2: out unsigned(4 downto 0);           -- 소스 레지스터 1, 2 (5비트)
+        func3: out std_logic_vector(2 downto 0);      -- funct3 필드 (3비트)
+        func7: out std_logic_vector(6 downto 0);      -- funct7 필드 (7비트)
+        imm: out std_logic_vector(31 downto 0)        -- 상수값 (32비트)
+    );
+end entity;
+
+architecture Behavioral of InstructionDecoder is
+begin
+    process(instruction)
+    begin
+        -- 기본값 초기화
+        opcode <= instruction(6 downto 0);
+        rd <= unsigned(instruction(11 downto 7)); 
+        rs1 <= unsigned(instruction(19 downto 15)); 
+        rs2 <= unsigned(instruction(24 downto 20)); 
+        func3 <= instruction(14 downto 12); 
+        func7 <= instruction(31 downto 25);
+        imm <= (others => '0'); -- 기본값
+
+        -- 명령어 디코딩
+        case opcode is
+            -- S-type: imm = [31:25] & [11:7]
+            when "0100011" =>
+                imm <= std_logic_vector(signed(instruction(31 downto 25) & instruction(11 downto 7)));
+            
+            -- B-type: imm = [31] & [7] & [30:25] & [11:8] (확장 필요)
+            when "1100011" =>
+                imm <= std_logic_vector(signed(instruction(31) & instruction(7) &
+                                                instruction(30 downto 25) & instruction(11 downto 8) & '0'));
+            
+            -- U-type: imm = [31:12] & 12'b0
+            when "0110111" | "0010111" =>
+                imm <= instruction(31 downto 12) & (others => '0');
+            
+            -- J-type: imm = [31] & [19:12] & [20] & [30:21] (확장 필요)
+            when "1101111" =>
+                imm <= std_logic_vector(signed(instruction(31) &
+                                                instruction(19 downto 12) &
+                                                instruction(20) &
+                                                instruction(30 downto 21) & '0'));
+            
+            -- I-type 기본 Immediate 처리
+            when others =>
+                imm <= std_logic_vector(signed(instruction(31 downto 20)));
+        end case;
+    end process;
+end Behavioral;

@@ -1,0 +1,58 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Memory is
+    port(
+        CLK: in std_logic;                                -- Clock
+        Addr: in unsigned(31 downto 0);                   -- 32비트 주소 (하위 7비트 사용)
+        Mem, Mem_write: in std_logic;                     -- Mem: 메모리 활성화, Mem_write: 쓰기 모드
+        Mem_size: in std_logic_vector(1 downto 0)         -- 메모리 크기 (워드, 하프워드, 바이트)
+        
+        Mem_Bus: inout unsigned(31 downto 0)              -- 메모리 버스 (읽기/쓰기 공용)
+    );
+end Memory;
+
+architecture Behavioral of Memory is
+    type RAMtype is array(0 to 127) of unsigned(31 downto 0); -- 128개의 32비트 메모리 블록
+    signal RAM: RAMtype := (others => (others => '0'));       -- 초기화: 모든 메모리 0
+    signal Output: unsigned(31 downto 0);                    -- 읽기 데이터 저장
+begin
+    -- 메모리 버스 제어
+    Mem_Bus <= (others => 'Z') when Mem = '0' or Mem_write = '1' else Output;
+
+    -- 메모리 동작: 읽기/쓰기
+    process(CLK)
+    begin
+        if rising_edge(CLK) then                                    -- 클럭 상승 에지에서 동작
+            if Mem = '1' then
+	            -- 쓰기 동작
+                if Mem_write = '1' then
+                    when "00" => -- Word 쓰기
+                        RAM(to_integer(Addr(6 downto 0))) <= Mem_Bus;
+                    when "01" => -- Halfword 쓰기
+                        RAM(to_integer(Addr(6 downto 0)))(15 downto 0) <= Mem_Bus(15 downto 0);
+                    when "10" => -- Byte 쓰기
+                        RAM(to_integer(Addr(6 downto 0)))(7 downto 0) <= Mem_Bus(7 downto 0);
+                    when others => null;
+                else
+                    Output <= RAM(to_integer(Addr(6 downto 0)));   -- 메모리에서 데이터 읽기
+                end if;
+            end if;
+        end if;
+    end process;
+    
+	process(Mem_size, Output)
+    begin
+        case Mem_size is
+            when "00" => -- Word 읽기
+                Mem_Bus <= Output;
+            when "01" => -- Halfword 읽기
+                Mem_Bus <= (others => '0') & Output(15 downto 0);
+            when "10" => -- Byte 읽기
+                Mem_Bus <= (others => '0') & (others => '0') & Output(7 downto 0);
+            when others =>
+                Mem_Bus <= (others => 'Z'); -- 기본값: 고임피던스
+        end case;
+    end process;
+end Behavioral;

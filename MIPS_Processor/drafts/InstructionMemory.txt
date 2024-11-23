@@ -1,0 +1,32 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity InstructionMemory_tb is
+end InstructionMemory_tb;
+
+architecture Behavioral of InstructionMemory_tb is
+    signal Address: unsigned(31 downto 0) := (others => '0');
+    signal Instruction: std_logic_vector(31 downto 0);
+begin
+    -- DUT: Design Under Test
+    DUT: entity work.InstructionMemory
+        port map (
+            Address => Address,
+            Instruction => Instruction
+        );
+
+    -- 테스트 벡터
+    process
+    begin
+        Address <= x"00000000";  -- PC = 0x00
+        wait for 10 ns;
+        Address <= x"00000004";  -- PC = 0x04
+        wait for 10 ns;
+        Address <= x"00000008";  -- PC = 0x08
+        wait for 10 ns;
+        Address <= x"0000000C";  -- PC = 0x0C
+        wait for 10 ns;
+        wait;
+    end process;
+end Behavioral;

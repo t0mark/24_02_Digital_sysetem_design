@@ -1,0 +1,157 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity ControlUnit is
+    port (
+        opcode: in std_logic_vector(6 downto 0);         -- opcode 입력 (7비트)
+        func3: in std_logic_vector(2 downto 0);          -- func3 입력 (3비트)
+        func7: in std_logic_vector(6 downto 0);          -- func7 입력 (7비트)
+        
+        ALU_control: out std_logic_vector(3 downto 0);   -- ALU 제어 신호 (4비트)
+        ALU_imm_src: out std_logic;                      -- ALU 입력 소스 선택
+        Reg_write: out std_logic;                        -- 레지스터 쓰기 신호
+        Mem: out std_logic;                              -- 메모리 사용 신호
+        Mem_size: out std_logic_vector(2 downto 0);      -- 메모리 크기 제어
+        Mem_write: out std_logic;                        -- 메모리 쓰기 신호, 1: 쓰기 모드, 0: 읽기 모드
+        Mem2Reg: out std_logic;                          -- 메모리 선택 신호, 1: Mem -> Reg, 0: ALU -> Reg
+        branch: out std_logic;                           -- 분기 신호
+        invert_condition: out std_logic                  -- 분기 조건, 반대 체크
+    );
+end entity;
+
+architecture Behavioral of ControlUnit is
+begin
+    process(opcode, func3, func7)
+    begin
+        -- 기본값 설정
+        ALU_control <= "0000"; -- 기본값: ADD
+        ALU_imm_src <= '0';
+        Reg_write <= '0';
+        Mem <= '0';
+        Mem_size <= "00";      -- 기본값 (Word)
+        Mem_write <= '0';
+        Mem2Reg <= '0';
+        branch <= '0';
+        invert_condition <= 0;
+
+        -- Opcode에 따른 제어 신호 생성
+        case opcode is
+            -- R-type, I-type (ALU 연산)
+            when "0110011" | "0010011" =>
+	            case func3 is
+                    when "000" =>
+                        if func7 = "0000000" then
+                            ALU_control <= "0000"; -- ADD
+                        elsif func7 = "0100000" then
+                            ALU_control <= "0001"; -- SUB
+                        end if;
+                    when "001" => ALU_control <= "0010"; -- SLL
+                    when "010" => ALU_control <= "0011"; -- SLT
+                    when "011" => ALU_control <= "0100"; -- SLTU
+                    when "100" => ALU_control <= "0101"; -- XOR
+                    when "101" =>
+                        if func7 = "0000000" then
+                            ALU_control <= "0110"; -- SRL
+                        elsif func7 = "0100000" then
+                            ALU_control <= "0111"; -- SRA
+                        end if;
+                    when "110" => ALU_control <= "1000"; -- OR
+                    when "111" => ALU_control <= "1001"; -- AND
+                    when others => null;
+                end case;
+	            if opcode = "0010011" then 
+		            ALU_imm_src <= '1';                       -- Immediate 사용
+                end if;
+	            Reg_write <= '1';                              -- 레지스터 쓰기 활성화
+
+            -- Load 명령어
+            when "0000011" =>
+                ALU_control <= "0000"; -- 주소 계산 (ADD)
+                ALU_imm_src <= '1';    -- Immediate 사용
+                Reg_write <= '1';
+                Mem <= '1';
+                case funct3 is 
+	                when "010" => 
+		                Mem_size <= "00"; -- lw (Word) 
+		            when "001" => 
+			            Mem_size <= "01"; -- lh (Halfword) 
+		            when "000" => 
+			            Mem_size <= "10"; -- lb (Byte) 
+		            when others => 
+			            Mem_size <= "00"; -- 기본값 (Word) 
+		        end case;
+                Mem2Reg <= '1';        -- 메모리 값을 레지스터에 저장
+
+            -- Store 명령어
+            when "0100011" =>
+                ALU_control <= "0000"; -- 주소 계산 (ADD)
+                ALU_imm_src <= '1';    -- Immediate 사용
+                Mem <= '1';
+                case funct3 is 
+	                when "010" => 
+		                Mem_size <= "00"; -- lw (Word) 
+		            when "001" => 
+			            Mem_size <= "01"; -- lh (Halfword) 
+		            when "000" => 
+			            Mem_size <= "10"; -- lb (Byte) 
+		            when others => 
+			            Mem_size <= "00"; -- 기본값 (Word) 
+		        end case;
+                Mem_write <= '1';
+
+            -- Branch 명령어
+            when "1100011" =>
+                case func3 is
+                    when "000" =>              -- BEQ
+	                    ALU_control <= "1010";
+		                invert_condition <= 0;
+                    when "001" =>              -- BNE
+	                    ALU_control <= "1010";
+	                    invert_condition <= 1;
+                    when "100" =>
+	                    ALU_control <= "1011";
+	                    invert_condition <= 0;
+	                when "101" =>
+	                    ALU_control <= "1011";
+	                    invert_condition <= 1;
+	                when "110" =>
+	                    ALU_control <= "1100";
+	                    invert_condition <= 0;
+	                when "111" =>
+	                    ALU_control <= "1100";
+	                    invert_condition <= 1;
+                    when others => null;
+                end case;
+                ALU_imm_src <= '0';
+                branch <= '1';
+
+            -- LUI 명령어
+            when "0110111" =>
+                ALU_control <= "1101"; -- LUI: imm << 12
+                ALU_imm_src <= '1';
+                Reg_write <= '1';
+
+            -- AUIPC
+            when "0110111" =>
+	            ALU_control <= "1110"; -- AUIPC: PC + (imm << 12)
+
+            -- JAL 명령어
+            when "1101111" =>
+	            ALU_control <= "0000"; -- 주소 계산 (ADD)
+                Reg_write <= '1';
+                branch <= '1';
+
+            -- JALR 명령어
+            when "1100111" =>
+                ALU_control <= "0000"; -- 주소 계산 (ADD)
+                ALU_imm_src <= '1';
+                Reg_write <= '1';
+                branch <= '1';
+
+            -- 기본값 유지
+            when others =>
+                null;
+        end case;
+    end process;
+end architecture;
