@@ -1,0 +1,120 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity RISC_V_Processor is
+    port (
+        CLK: in std_logic;                                -- 클럭 신호
+        reset: in std_logic                               -- 리셋 신호
+    );
+end entity;
+
+architecture Behavioral of RISC_V_Processor is
+    -- 신호 정의
+    signal PC_out, PC_next: unsigned(31 downto 0);       -- 프로그램 카운터
+    signal instruction: std_logic_vector(31 downto 0);  -- 명령어
+    signal opcode: std_logic_vector(6 downto 0);        -- Opcode
+    signal rd: unsigned(4 downto 0);                    -- 목적 레지스터
+    signal rs1, rs2: unsigned(4 downto 0);              -- 소스 레지스터
+    signal func3: std_logic_vector(2 downto 0);         -- funct3
+    signal func7: std_logic_vector(6 downto 0);         -- funct7
+    signal imm: std_logic_vector(31 downto 0);          -- Immediate
+    signal ALU_control: std_logic_vector(3 downto 0);   -- ALU 제어 신호
+    signal ALU_imm_src: std_logic;                      -- ALU 입력 소스 선택
+    signal Reg_write, Mem_write, branch, Mem2Reg: std_logic; -- 제어 신호
+    signal Mem_size: std_logic_vector(2 downto 0);      -- 메모리 크기
+    signal r1_out, r2_out: unsigned(31 downto 0);       -- 레지스터 출력
+    signal ALU_result: unsigned(31 downto 0);           -- ALU 결과
+    signal Mem_result: unsigned(31 downto 0);           -- 메모리 읽기 결과
+    signal pc_src: std_logic;                           -- 분기 신호
+
+begin
+    -- PC 모듈
+    PC_module: entity work.PC
+        port map (
+            CLK => CLK,
+            reset => reset,
+            jump_addr => std_logic_vector(PC_next),
+            pc_src => pc_src,
+            pc_out => std_logic_vector(PC_out)
+        );
+
+    -- Instruction Memory 모듈
+    InstructionMemory_module: entity work.InstructionMemory
+        port map (
+            PC => PC_out,
+            Instruction => instruction
+        );
+
+    -- Instruction Decoder 모듈
+    InstructionDecoder_module: entity work.InstructionDecoder
+        port map (
+            instruction => instruction,
+            opcode => opcode,
+            rd => rd,
+            rs1 => rs1,
+            rs2 => rs2,
+            func3 => func3,
+            func7 => func7,
+            imm => imm
+        );
+
+    -- Control Unit 모듈
+    ControlUnit_module: entity work.ControlUnit
+        port map (
+            opcode => opcode,
+            func3 => func3,
+            func7 => func7,
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            Reg_write => Reg_write,
+            Mem => open,  -- 메모리 활성화는 상위에서 처리
+            Mem_size => Mem_size,
+            Mem_write => Mem_write,
+            Mem2Reg => Mem2Reg,
+            branch => branch,
+            invert_condition => open
+        );
+
+    -- Register File 모듈
+    Register_module: entity work.Register
+        port map (
+            CLK => CLK,
+            reset => reset,
+            Reg_write => Reg_write,
+            rd => std_logic_vector(rd),
+            rs1 => std_logic_vector(rs1),
+            rs2 => std_logic_vector(rs2),
+            Mem_result => Mem_result,
+            ALU_result => ALU_result,
+            data_src => Mem2Reg,
+            r1_out => r1_out,
+            r2_out => r2_out
+        );
+
+    -- ALU 모듈
+    ALU_module: entity work.ALU
+        port map (
+            A => r1_out,
+            B => r2_out,
+            imm => unsigned(imm),
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            pc_branch_in => PC_out,
+            result => ALU_result,
+            pc_src => pc_src,
+            pc_branch_out => PC_next
+        );
+
+    -- Data Memory 모듈
+    Memory_module: entity work.Memory
+        port map (
+            CLK => CLK,
+            Addr => ALU_result,
+            Mem => open, -- 활성화는 상위에서 처리
+            Mem_write => Mem_write,
+            Mem_size => Mem_size,
+            Mem_Bus => Mem_result
+        );
+
+end Behavioral;
