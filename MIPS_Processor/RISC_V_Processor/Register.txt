@@ -1,0 +1,46 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity Reg is
+    port(
+        CLK: in std_logic;                                -- 클럭 신호
+        reset: in std_logic;                              -- 리셋 신호 (선택 사항)
+        Reg_write: in std_logic;                          -- 레지스터 쓰기 활성화
+        rd: in unsigned(4 downto 0);                      -- 목적 레지스터
+        rs1, rs2: in unsigned(4 downto 0);                -- 소스 레지스터
+        Mem_result: in signed(31 downto 0);               -- 메모리 데이터 입력
+        ALU_result: in signed(31 downto 0);               -- 쓰기 데이터 (ALU 결과)
+        data_src: in std_logic;                           -- 데이터 소스 선택 신호, 1: Mem, 0: Reg
+
+        r1_out, r2_out: out signed(31 downto 0)         -- 레지스터 출력
+    );
+end entity;
+
+architecture Behavioral of Reg is
+    -- 레지스터 파일 정의: 32개의 32비트 레지스터
+    type RAM is array (0 to 31) of signed(31 downto 0);
+    signal Regs: RAM := (others => (others => '0'));       -- 초기화: 모든 레지스터 0으로 설정
+
+    -- 레지스터 쓰기 데이터 선택
+    signal Reg_in: signed(31 downto 0);
+begin
+    -- 데이터 소스 선택: 메모리 데이터 또는 ALU 쓰기 데이터
+    Reg_in <= Mem_result when data_src = '0' else ALU_result;
+
+    -- 레지스터 쓰기 처리
+    process(CLK, reset)
+    begin
+        if reset = '1' then
+            Regs <= (others => (others => '0'));           -- 리셋 시 모든 레지스터 0으로 초기화
+        elsif rising_edge(CLK) then
+            if Reg_write = '1' and rd /= "00000" then      -- 레지스터 0번은 항상 0
+                Regs(to_integer(unsigned(rd))) <= Reg_in;  -- rd에 데이터 쓰기
+            end if;
+        end if;
+    end process;
+
+    -- 레지스터 읽기 출력
+    r1_out <= signed(Regs(to_integer(rs1)));            -- rs1 레지스터 값 출력
+    r2_out <= signed(Regs(to_integer(rs2)));            -- rs2 레지스터 값 출력
+end architecture;

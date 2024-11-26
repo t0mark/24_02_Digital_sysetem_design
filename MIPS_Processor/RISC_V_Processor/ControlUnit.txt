@@ -12,7 +12,7 @@ entity ControlUnit is
         ALU_imm_src: out std_logic;                      -- ALU 입력 소스 선택
         Reg_write: out std_logic;                        -- 레지스터 쓰기 신호
         Mem: out std_logic;                              -- 메모리 사용 신호
-        Mem_size: out std_logic_vector(2 downto 0);      -- 메모리 크기 제어
+        Mem_size: out std_logic_vector(1 downto 0);      -- 메모리 크기 제어
         Mem_write: out std_logic;                        -- 메모리 쓰기 신호, 1: 쓰기 모드, 0: 읽기 모드
         Mem2Reg: out std_logic;                          -- 메모리 선택 신호, 1: Mem -> Reg, 0: ALU -> Reg
         branch: out std_logic;                           -- 분기 신호
@@ -33,7 +33,7 @@ begin
         Mem_write <= '0';
         Mem2Reg <= '0';
         branch <= '0';
-        invert_condition <= 0;
+        invert_condition <= '0';
 
         -- Opcode에 따른 제어 신호 생성
         case opcode is
@@ -71,7 +71,7 @@ begin
                 ALU_imm_src <= '1';    -- Immediate 사용
                 Reg_write <= '1';
                 Mem <= '1';
-                case funct3 is 
+                case func3 is 
 	                when "010" => 
 		                Mem_size <= "00"; -- lw (Word) 
 		            when "001" => 
@@ -88,7 +88,7 @@ begin
                 ALU_control <= "0000"; -- 주소 계산 (ADD)
                 ALU_imm_src <= '1';    -- Immediate 사용
                 Mem <= '1';
-                case funct3 is 
+                case func3 is 
 	                when "010" => 
 		                Mem_size <= "00"; -- lw (Word) 
 		            when "001" => 
@@ -105,22 +105,22 @@ begin
                 case func3 is
                     when "000" =>              -- BEQ
 	                    ALU_control <= "1010";
-		                invert_condition <= 0;
+		                invert_condition <= '0';
                     when "001" =>              -- BNE
 	                    ALU_control <= "1010";
-	                    invert_condition <= 1;
+	                    invert_condition <= '1';
                     when "100" =>
 	                    ALU_control <= "1011";
-	                    invert_condition <= 0;
+	                    invert_condition <= '0';
 	                when "101" =>
 	                    ALU_control <= "1011";
-	                    invert_condition <= 1;
+	                    invert_condition <= '1';
 	                when "110" =>
 	                    ALU_control <= "1100";
-	                    invert_condition <= 0;
+	                    invert_condition <= '0';
 	                when "111" =>
 	                    ALU_control <= "1100";
-	                    invert_condition <= 1;
+	                    invert_condition <= '1';
                     when others => null;
                 end case;
                 ALU_imm_src <= '0';
@@ -133,7 +133,7 @@ begin
                 Reg_write <= '1';
 
             -- AUIPC
-            when "0110111" =>
+            when "0010111" =>
 	            ALU_control <= "1110"; -- AUIPC: PC + (imm << 12)
 
             -- JAL 명령어

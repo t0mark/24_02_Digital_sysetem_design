@@ -1,0 +1,149 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity RISC_V_Processor is
+
+end entity;
+
+architecture Behavioral of RISC_V_Processor is
+    -- Processor signal
+    signal CLK: std_logic := '0';
+    signal reset: std_logic := '0';
+    
+    constant CLK_PERIOD: time := 10 ns;
+    
+    -- Signal Definitions
+    signal PC_out, jump_addr: unsigned(31 downto 0);
+    signal pc_src: std_logic;
+    
+    signal Instruction: std_logic_vector(31 downto 0);
+    
+    signal opcode, func7: std_logic_vector(6 downto 0);
+    signal func3: std_logic_vector(2 downto 0);
+    signal rd, rs1, rs2: unsigned(4 downto 0);
+    signal imm: signed(19 downto 0);
+    signal imm_20bit: std_logic;
+    
+    signal ALU_control: std_logic_vector(3 downto 0);
+    signal ALU_imm_src, Reg_write, Mem, Mem_write, Mem2Reg, branch,invert_condition: std_logic;
+    signal Mem_size: std_logic_vector(1 downto 0);
+    
+    signal r1_out, r2_out: signed(31 downto 0);
+    signal Mem_result, ALU_result: signed(31 downto 0);
+
+begin
+    -- PC Module
+    PC_inst: entity work.PC
+        port map(
+            CLK => CLK,
+            reset => reset,
+            jump_addr => jump_addr,
+            pc_src => pc_src,
+            pc_out => PC_out
+        );
+
+    -- Instruction Memory Module
+    InstructionMemory_inst: entity work.InstructionMemory
+        port map(
+            PC => PC_out,
+            Instruction => Instruction
+        );
+
+    -- Instruction Decoder Module
+    InstructionDecoder_inst: entity work.InstructionDecoder
+        port map(
+            Instruction => Instruction,
+            opcode => opcode,
+            rd => rd,
+            rs1 => rs1,
+            rs2 => rs2,
+            func3 => func3,
+            func7 => func7,
+            imm => imm,
+            imm_20bit => imm_20bit
+        );
+
+    -- Control Unit Module
+    ControlUnit_inst: entity work.ControlUnit
+        port map(
+            opcode => opcode,
+            func3 => func3,
+            func7 => func7,
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            Reg_write => Reg_write,
+            Mem => Mem,
+            Mem_size => Mem_size,
+            Mem_write => Mem_write,
+            Mem2Reg => Mem2Reg,
+            branch => branch,
+            invert_condition => invert_condition
+        );
+        
+    -- Register File Module
+    Reg_inst: entity work.Reg
+        port map(
+            CLK => CLK,
+            reset => reset,
+            Reg_write => Reg_write,
+            rd => rd,
+            rs1 => rs1,
+            rs2 => rs2,
+            Mem_result => Mem_result,
+            ALU_result => ALU_result,
+            data_src => Mem2Reg,
+            r1_out => r1_out,
+            r2_out => r2_out
+        );
+
+    -- ALU Module
+    ALU_inst: entity work.ALU
+        port map(
+            A => r1_out,
+            B => r2_out,
+            imm => imm,
+            imm_20bit => imm_20bit,
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            pc_branch_in => PC_out,
+            result => ALU_result,
+            pc_src => pc_src,
+            pc_branch_out => jump_addr
+        );
+
+    -- Memory Module
+    Memory_inst: entity work.Memory
+        port map(
+            CLK => CLK,
+            Addr => unsigned(ALU_result),
+            Mem => Mem,
+            Mem_write => Mem_write,
+            Mem_size => Mem_size,
+            Mem_Bus => Mem_result
+        );
+        
+    -- 클럭 생성
+    CLK_process: process
+    begin
+        for i in 1 to 20 loop -- 제한된 반복 횟수
+            CLK <= '0';
+            wait for CLK_PERIOD / 2;
+            CLK <= '1';
+            wait for CLK_PERIOD / 2;
+        end loop;
+        wait; -- 반복 종료 후 대기
+    end process;
+    
+    process
+    begin
+        -- 초기화
+        reset <= '1';
+        pc_src <= '0';
+        wait for 10 ns;
+        reset <= '0';
+
+        -- 시뮬레이션 종료
+        wait;
+    end process;
+end Behavioral;

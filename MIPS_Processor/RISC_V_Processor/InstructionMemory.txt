@@ -1,0 +1,48 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity InstructionMemory is
+    port (
+        PC: in unsigned(31 downto 0);                -- 입력 PC (Program Counter)
+        Instruction: out std_logic_vector(31 downto 0) -- 출력 명령어 (32비트)
+    );
+end entity;
+
+architecture Behavioral of InstructionMemory is
+    -- Instruction Memory 정의: 128개의 32비트 명령어 저장
+    type MemoryType is array (0 to 127) of std_logic_vector(31 downto 0);
+    signal Memory: MemoryType := (
+
+        0 => "00000000010100000000000010010011", -- addi x1, x0, 5
+        1 => "00000000101000000000000100010011", -- addi x2, x0, 10
+        2 => "00000000000000000000000110010011", -- addi x3, x0, 0
+        3 => "00000000000000000000010110110011", -- add x11, x0, x0
+        4 => "00000000000000000000011000110011", -- add x12, x0, x0
+        
+        5 => "00000000000000010101100001100011", -- bge x2, x0, 8
+        6 => "01000000000100000000000010110011", -- sub x1, x0, x1
+        7 => "00000000000101011100010110010011", -- xori x11, x11, 1
+        
+        8 => "00000000000000010101100001100011", -- bge x2, x0, 8
+        9 => "01000000001000000000000100110011", -- sub x2, x0, x2
+        10 => "00000000000101100100011000010011", -- xori x12, x12, 1
+        
+        11 => "00000000000000000000001000010011", -- addi x4, x0, 0
+        12 => "00000000001000100100110001100011", -- blt x4, x2, 12
+        13 => "00000000000100100000001000010011", -- addi x4, x4, 1
+        14 => "00000000000100011000000110110011", -- add x3, x3, x1
+        15 => "11111110000111111111001011101111", -- jal x5, -16
+        
+        16 => "00000000110001011100001010110011", -- xor x5, x11, x12
+        17 => "00000000000000101101010001100011", -- bge x5, x0, 4
+        18 => "01000000001100000000000110110011", -- sub x3, x0, x3
+        others => (others => '0')
+    );
+begin
+    -- PC에 따라 명령어 출력
+    process(PC)
+    begin
+        Instruction <= Memory(to_integer(PC)/4);
+    end process;
+end Behavioral;

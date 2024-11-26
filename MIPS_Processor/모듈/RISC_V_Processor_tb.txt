@@ -1,0 +1,46 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity RISC_V_Processor_tb is
+end entity;
+
+architecture Behavioral of RISC_V_Processor_tb is
+    -- 클럭 및 리셋 신호
+    signal CLK: std_logic := '0';
+    signal reset: std_logic := '1';
+
+    -- 통합 모듈 인스턴스화
+    component RISC_V_Processor
+        port (
+            CLK: in std_logic;
+            reset: in std_logic
+        );
+    end component;
+
+begin
+    -- 클럭 생성: 10ns 주기
+    process
+    begin
+        CLK <= '0';
+        wait for 5 ns;
+        CLK <= '1';
+        wait for 5 ns;
+    end process;
+
+    -- 리셋 신호 초기화 및 테스트
+    process
+    begin
+        reset <= '1';     -- 초기화
+        wait for 20 ns;
+        reset <= '0';     -- 정상 동작
+        wait;
+    end process;
+
+    -- 통합 모듈 인스턴스
+    DUT: RISC_V_Processor
+        port map (
+            CLK => CLK,
+            reset => reset
+        );
+end Behavioral;

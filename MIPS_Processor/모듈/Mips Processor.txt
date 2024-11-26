@@ -1,0 +1,118 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity RISC_V_Processor is
+    port (
+        CLK: in std_logic;                                -- 클럭 신호
+        reset: in std_logic                               -- 리셋 신호
+    );
+end entity;
+
+architecture Behavioral of RISC_V_Processor is
+    -- Signal Definitions
+    signal PC_out, Jump_addr: std_logic_vector(31 downto 0);
+    signal Instruction: std_logic_vector(31 downto 0);
+    signal opcode, func7: std_logic_vector(6 downto 0);
+    signal func3: std_logic_vector(2 downto 0);
+    signal rd, rs1, rs2: unsigned(4 downto 0);
+    signal imm: std_logic_vector(19 downto 0);
+    signal imm_20bit: std_logic;
+    signal ALU_control: std_logic_vector(3 downto 0);
+    signal ALU_imm_src, Reg_write, Mem, Mem_write, Mem2Reg, branch, pc_src, invert_condition: std_logic;
+    signal Mem_size: std_logic_vector(1 downto 0);
+    signal r1_out, r2_out, Mem_result, ALU_result: unsigned(31 downto 0);
+    signal ALU_pc_branch_out: unsigned(31 downto 0);
+
+begin
+    -- PC Module
+    PC_inst: entity work.PC
+        port map(
+            CLK => CLK,
+            reset => reset,
+            jump_addr => std_logic_vector(ALU_pc_branch_out),
+            pc_src => pc_src,
+            pc_out => PC_out
+        );
+
+    -- Instruction Memory Module
+    InstructionMemory_inst: entity work.InstructionMemory
+        port map(
+            PC => unsigned(PC_out),
+            Instruction => Instruction
+        );
+
+    -- Instruction Decoder Module
+    InstructionDecoder_inst: entity work.InstructionDecoder
+        port map(
+            instruction => Instruction,
+            opcode => opcode,
+            rd => rd,
+            rs1 => rs1,
+            rs2 => rs2,
+            func3 => func3,
+            func7 => func7,
+            imm => imm,
+            imm_20bit => imm_20bit
+        );
+
+    -- Control Unit Module
+    ControlUnit_inst: entity work.ControlUnit
+        port map(
+            opcode => opcode,
+            func3 => func3,
+            func7 => func7,
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            Reg_write => Reg_write,
+            Mem => Mem,
+            Mem_size => Mem_size,
+            Mem_write => Mem_write,
+            Mem2Reg => Mem2Reg,
+            branch => branch,
+            invert_condition => invert_condition
+        );
+
+    -- Register File Module
+    Reg_inst: entity work.Reg
+        port map(
+            CLK => CLK,
+            reset => reset,
+            Reg_write => Reg_write,
+            rd => std_logic_vector(rd),
+            rs1 => std_logic_vector(rs1),
+            rs2 => std_logic_vector(rs2),
+            Mem_result => Mem_result,
+            ALU_result => ALU_result,
+            data_src => Mem2Reg,
+            r1_out => r1_out,
+            r2_out => r2_out
+        );
+
+    -- ALU Module
+    ALU_inst: entity work.ALU
+        port map(
+            A => r1_out,
+            B => r2_out,
+            imm => unsigned(imm),
+            imm_20bit => imm_20bit,
+            ALU_control => ALU_control,
+            ALU_imm_src => ALU_imm_src,
+            pc_branch_in => unsigned(PC_out),
+            result => ALU_result,
+            pc_src => pc_src,
+            pc_branch_out => ALU_pc_branch_out
+        );
+
+    -- Memory Module
+    Memory_inst: entity work.Memory
+        port map(
+            CLK => CLK,
+            Addr => ALU_result,
+            Mem => Mem,
+            Mem_write => Mem_write,
+            Mem_size => Mem_size,
+            Mem_Bus => Mem_result
+        );
+
+end Behavioral;

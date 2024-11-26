@@ -33,7 +33,7 @@ begin
 	    if pc_src = '0' then
 		    pc_next <= std_logic_vector(unsigned(pc_reg) + 4);
 		else
-			pc <= jump_addr;
+			pc_next <= jump_addr;
 		end if;
     end process;
 

@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
-entity Register is
+entity Reg is
     port(
         CLK: in std_logic;                                -- 클럭 신호
         reset: in std_logic;                              -- 리셋 신호 (선택 사항)
@@ -17,7 +17,7 @@ entity Register is
     );
 end entity;
 
-architecture Behavioral of Register is
+architecture Behavioral of Reg is
     -- 레지스터 파일 정의: 32개의 32비트 레지스터
     type RAM is array (0 to 31) of unsigned(31 downto 0);
     signal Regs: RAM := (others => (others => '0'));       -- 초기화: 모든 레지스터 0으로 설정
